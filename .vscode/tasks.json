@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "gradle",
+			"id": "/home/atp429/MyPrograms/PingDisplayapp:runapp",
+			"script": "app:run",
+			"description": "Runs this project as a JVM application",
+			"group": "application",
+			"project": "app",
+			"buildFile": "/home/atp429/MyPrograms/PingDisplay/app/build.gradle",
+			"rootProject": "PingDisplay",
+			"projectFolder": "/home/atp429/MyPrograms/PingDisplay",
+			"workspaceFolder": "/home/atp429/MyPrograms/PingDisplay",
+			"args": "",
+			"javaDebug": true,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"label": "gradle: app:run"
+		}
+	]
+}

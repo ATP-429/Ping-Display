@@ -1,0 +1,1 @@
+ping -t pingtest-sgp.brawlhalla.com -w 300
