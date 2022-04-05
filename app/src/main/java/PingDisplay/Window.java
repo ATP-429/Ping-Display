@@ -26,23 +26,21 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 {
 	public static final int HEIGHT = 50 + 15, WIDTH = 100; //Dimensions of the whole window including the text area
 	public static final int GRAPH_HEIGHT = 50, GRAPH_WIDTH = 100; //Dimensions of the graph
-	public static final int FPS = 30;
 	public static int SCREEN_HEIGHT, SCREEN_WIDTH;
 	
-	public static ArrayList<Long> pingsX = new ArrayList<Long>();
-	public static ArrayList<Integer> pingsY = new ArrayList<Integer>();
-	public static long start;
+	public volatile boolean hovering;
+	public volatile boolean mouseInside;
+	public volatile int mouseX, mouseY;
 	
-	public static volatile boolean hovering;
-	public static volatile boolean mouseInside;
-	public static volatile int mouseX, mouseY;
+	public double actualCamY;
+	public double targetCamY;
 	
-	public static double actualCamY;
-	public static double targetCamY;
-	
-	public static BufferedImage close, closeHovered;
-	public static BufferedReader in;
-	public static Process process;
+    public ArrayList<Packet> pings = new ArrayList<Packet>();
+    public long start;
+
+	public BufferedImage close, closeHovered;
+	public BufferedReader in;
+	public Process process;
 	
 	JFrame frame;
 	
@@ -52,138 +50,50 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 		setPreferredSize(size);
 		addMouseMotionListener(this);
 		addMouseListener(this);
-	}
-	
-	public static void main(String[] args)
-	{
-		Dimension res = Toolkit.getDefaultToolkit().getScreenSize();
+
+        Dimension res = Toolkit.getDefaultToolkit().getScreenSize();
 		SCREEN_WIDTH = res.width;
 		SCREEN_HEIGHT = res.height;
-		
-		Window main = new Window();
-		
-		main.frame = new JFrame();
-		main.frame.add(main);
-		main.frame.setSize(WIDTH, HEIGHT);
-		main.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		main.frame.setResizable(false);
-		main.frame.setAlwaysOnTop(true);
-		main.frame.setUndecorated(true);
-		main.frame.setOpacity(0.7f);
-		main.frame.getContentPane().setBackground(new Color(1.0f, 0.0f, 0.0f, 0.5f));
-		main.frame.setTitle("Ping Display");
-		try
-		{
-			main.frame.setIconImage(ImageIO.read(new File("res/icon.png")));
+
+        this.frame = new JFrame();
+		this.frame.add(this);
+		this.frame.setSize(WIDTH, HEIGHT);
+		this.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		this.frame.setResizable(false);
+		this.frame.setAlwaysOnTop(true);
+		this.frame.setUndecorated(true);
+		this.frame.setOpacity(0.7f);
+		this.frame.getContentPane().setBackground(new Color(1.0f, 0.0f, 0.0f, 0.5f));
+		this.frame.setTitle("Ping Display");
+
+        try {
+			close = ImageIO.read(ClassLoader.getSystemClassLoader().getResource("close.png"));
+			closeHovered = ImageIO.read(ClassLoader.getSystemClassLoader().getResource("closeHovered.png"));
 		}
-		catch (IOException e3)
-		{
-			e3.printStackTrace();
-		}
-		main.frame.pack();
-		main.frame.setVisible(true);
-		
-		try
-		{
-			close = ImageIO.read(new File("res/close.png"));
-			closeHovered = ImageIO.read(new File("res/closeHovered.png"));
-		}
-		catch (IOException e2)
-		{
+		catch (IOException e2) {
 			e2.printStackTrace();
 		}
-		
-		long lastTime = System.currentTimeMillis();
-		start = System.currentTimeMillis();
-		while (true)
-		{
-			//Limiting the fps to 60
-			long currentTime = System.currentTimeMillis();
-			if (currentTime - lastTime > 1000 / FPS) //If it's been 1000/60 ms, that is, if it's been the amount of time taken up by one frame, then display another frame
-			{
-				try
-				{
-					if (in.ready())
-					{
-						String line = in.readLine(); //Reads all remaining bytes from input stream, so only the new lines will be read
-						String word = "";
-						int i = 0;
-						while (i != line.length())
-						{
-							if (line.charAt(i) == ' ') //If character is space, interpret the current word, and then start making a new word
-							{
-								/*//We need to make sure length is greater than 6 atleast, otherwise we can include numbers from statements like "with 32 bytes of data"
-								if (word.length() >= 6 && word.charAt(0) >= '0' && word.charAt(0) <= '9')
-								{
-									String IP = word;
-									System.out.print(IP + " : ");
-								}*/
-								if (word.length() >= 5 && word.substring(0, 5).compareTo("time=") == 0) //Also NOTE: We need to check if word has "time=" or not, otherwise we might also include the word "timed"
-								{
-									//NOTE: We need to first get rid of "ms" from the string and then the "time", because otherwise getting rid of "time=" will change the length of the string, and word.length()-2 will actually be out of bounds
-									int ping = (int)Float.parseFloat(word.substring(0, word.length() - 2).substring(5)); //Get rid of the "time=" and "ms" from the string and parse the integer to get the ping
-									pingsX.add(System.currentTimeMillis() - start);
-									pingsY.add(ping);
-									if (pingsX.size() > 10)
-									{
-										pingsX.remove(0);
-										pingsY.remove(0);
-									}
-								}
-								//This means request timed out/General Failure/Destination Net Unreachable. Basically, if this happens, it basically means we lost a packet, so we can set ping to -1 so displayer knows that we dropped a packet here
-								else if (word.compareTo("Request") == 0 || word.compareTo("General") == 0 || word.compareTo("Destination") == 0)
-								{
-									pingsX.add(System.currentTimeMillis() - start);
-									pingsY.add(-1);
-								}
-								word = "";
-							}
-							else //If character is not space, add to the previous word
-							{
-								word += line.charAt(i);
-							}
-							i++;
-						}
-					}
-				}
-				catch (Exception e)
-				{
-					e.printStackTrace();
-				}
-				
-				/* For some reason, if we set background to any opacity less than 1, the frame stops getting repainted. We can see 
-				 * this if we ALT+TAB to desktop and then ALT+TAB to open the java window again. Putting this frame repaint here
-				 * makes it repaint and actually work again. If you don't understand what I'm saying, just remove this frame repaint,
-				 * and try the above ALT+TABing
-				 * 
-				 * idk why I was using main.frame.repaint(), but on linux it doesn't work. You need to do main.repaint() on linux
-				 */
-				//main.frame.repaint();
-				main.repaint();
-				lastTime = System.currentTimeMillis();
-			}
-			else
-			{
-				try
-				{
-					//Wait until it's time to render the next frame
-					Thread.sleep(1000 / FPS - (currentTime - lastTime));
-				}
-				catch (Exception e)
-				{
-					e.printStackTrace();
-				}
-			}
+		try {
+			this.frame.setIconImage(ImageIO.read(ClassLoader.getSystemClassLoader().getResource("icon.png")));
 		}
+		catch (IOException e3) {
+			e3.printStackTrace();
+		}
+
+		this.frame.pack();
+		this.frame.setVisible(true);
+        this.start = System.currentTimeMillis();
 	}
 	
-	
+	public void render(ArrayList<Packet> pings) {
+        this.pings = pings;
+        this.repaint();
+    }
 	
 	public void paint(Graphics og)
 	{
 		BufferedImage bufferImg = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g2 = (Graphics2D) bufferImg.getGraphics();
-		//System.out.println("Rnedered");
 		
 		g2.setColor(new Color(0.0f, 0.0f, 0.0f, 1.0f));
 		g2.fillRect(0, 0, WIDTH, HEIGHT);
@@ -205,7 +115,7 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 			
 		//Drawing the graph
 		long xPos = System.currentTimeMillis() - start; //Location of camera wrt start
-		for (int i = 1; i < pingsX.size(); i++)
+		for (int i = 1; i < pings.size(); i++)
 		{
 			/* Below, we have assumed that bottom line is 50 ms. Thus, we get the formula (GRAPH_HEIGHT - (pings.get(i).y-50)) for the height
 			 * of a recorded ping number. xPos represents location of the camera, so, when we do (xPos - pings.get(i).x)/60, we
@@ -213,30 +123,30 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 			 * Also, we do GRAPH_WIDTH - (xPos - pings.get(i).x)/60
 			 * 
 			 */
-			if (pingsY.get(i - 1) != -1 && pingsY.get(i) != -1)
+			if (pings.get(i - 1).value != -1 && pings.get(i).value != -1)
 			{
 				g2.setColor(new Color(0, 255, 0, 255));
-				double x1 = (GRAPH_WIDTH - (xPos - pingsX.get(i - 1)) / 60);
-				double y1 = (GRAPH_HEIGHT - (pingsY.get(i - 1) - 50) + (int) actualCamY);
-				double x2 = (GRAPH_WIDTH - (xPos - pingsX.get(i)) / 60);
-				double y2 = (GRAPH_HEIGHT - (pingsY.get(i) - 50) + (int) actualCamY);
+				double x1 = (GRAPH_WIDTH - (xPos - pings.get(i - 1).time) / 60);
+				double y1 = (GRAPH_HEIGHT - (pings.get(i - 1).value - 50) + (int) actualCamY);
+				double x2 = (GRAPH_WIDTH - (xPos - pings.get(i).time) / 60);
+				double y2 = (GRAPH_HEIGHT - (pings.get(i).value - 50) + (int) actualCamY);
 				g2.drawLine((int) x1, (int) y1, (int) x2, (int) y2);
 			}
 		}
 		
 		//Drawing a red line on any ping packet that was lost. We can't do this on the previous loop because we only go from i = 1 to the end
-		for (int i = 0; i < pingsX.size(); i++)
+		for (int i = 0; i < pings.size(); i++)
 		{
-			if (pingsY.get(i) == -1)
+			if (pings.get(i).value == -1)
 			{
 				g2.setColor(new Color(255, 0, 0, 255)); //Red line if any packet gets dropped
-				g2.drawLine((int) (GRAPH_WIDTH - (xPos - pingsX.get(i)) / 60), GRAPH_HEIGHT, (int) (GRAPH_WIDTH - (xPos - pingsX.get(i)) / 60), 0);
+				g2.drawLine((int) (GRAPH_WIDTH - (xPos - pings.get(i).time) / 60), GRAPH_HEIGHT, (int) (GRAPH_WIDTH - (xPos - pings.get(i).time) / 60), 0);
 			}
 		}
 		
-		if (pingsY.size() > 0)
+		if (pings.size() > 0)
 		{
-			int ping = pingsY.get(pingsY.size() - 1);
+			int ping = pings.get(pings.size() - 1).value;
 			int xPixelsPerLetter = 7, yPixelsPerLetter = 9; //Will be used for centering the string
 			if (ping > 0)
 			{
@@ -263,9 +173,9 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 			}
 			
 			//If the last ping is above/below camera's field of view, move the camera
-			if (pingsY.get(pingsY.size() - 1) != -1)
+			if (pings.get(pings.size() - 1).value != -1)
 			{
-				double y = (GRAPH_HEIGHT - (pingsY.get(pingsY.size() - 1) - 50)) + targetCamY;
+				double y = (GRAPH_HEIGHT - (pings.get(pings.size() - 1).value - 50)) + targetCamY;
 				int delta = 15; //Amount of difference that should exist between ping and upper/lower boundary of graph
 				if (y < delta)
 				{
@@ -282,13 +192,9 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 		
 		//If mouse is inside the window, show close button
 		if (mouseInside)
-		{
 			g2.drawImage(close, WIDTH - 16, 0, null);
-		}
 		if (hovering)
-		{
 			g2.drawImage(closeHovered, WIDTH - 16, 0, null);
-		}
 		
 		actualCamY += (targetCamY - actualCamY) / 10;
 		
