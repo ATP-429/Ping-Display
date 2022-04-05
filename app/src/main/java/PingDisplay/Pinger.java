@@ -29,9 +29,6 @@ public class Pinger {
 		catch (IOException e) {
 			e.printStackTrace();
         } 
-        //catch (URISyntaxException e) {
-          //  e.printStackTrace();
-        //}
 
 		try {
 			in = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
