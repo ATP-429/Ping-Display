@@ -25,7 +25,7 @@ public class Pinger {
         this.bufferSize = bufferSize;
         startTime = System.currentTimeMillis();
 		try {
-            process = runtime.exec(ClassLoader.getSystemClassLoader().getResource("test.sh").toURI().getPath());
+            process = runtime.exec(ClassLoader.getSystemClassLoader().getResource("pingSGP.sh").toURI().getPath());
             //String[] test = getResourceFileAsString("pingSGP.sh").split(" ");
             //process = runtime.exec(getResourceFileAsString("pingSGP.sh").split(" "));
 			//process = runtime.exec(getResourceFileAsString("pingSGP.sh"));
@@ -59,7 +59,6 @@ public class Pinger {
             if (in.ready())
             {
                 String line = in.readLine(); //Reads all remaining bytes from input stream, so only the new lines will be read
-                System.out.println(line);
                 pings.add(new Packet(this.getTime(), Integer.parseInt(line)));
                 if(pings.size() > bufferSize) {
                     pings.remove(0);
