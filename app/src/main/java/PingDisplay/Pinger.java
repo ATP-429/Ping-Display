@@ -23,19 +23,15 @@ public class Pinger {
         this.bufferSize = bufferSize;
         startTime = System.currentTimeMillis();
 		try {
-            process = runtime.exec(ClassLoader.getSystemClassLoader().getResource("pingSGP.sh").toURI().getPath());
-            //String[] test = getResourceFileAsString("pingSGP.sh").split(" ");
-            //process = runtime.exec(getResourceFileAsString("pingSGP.sh").split(" "));
-			//process = runtime.exec(getResourceFileAsString("pingSGP.sh"));
-            //process = runtime.exec("echo 65; echo 70; echo 30");
-            //process = runtime.exec("ping -w 300 -t 20 pingtest-sgp.brawlhalla.com | grep -oP '(?<=time=)[0-9]*'");
+            // https://stackoverflow.com/a/31776547/14686793
+            process = runtime.exec(new String[] {"bash", "-c", getResourceFileAsString("pingSGP.sh")});
 		}
 		catch (IOException e) {
 			e.printStackTrace();
         } 
-        catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
+        //catch (URISyntaxException e) {
+          //  e.printStackTrace();
+        //}
 
 		try {
 			in = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
