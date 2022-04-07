@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 
@@ -13,18 +12,35 @@ import java.util.stream.Collectors;
 public class Pinger {
     private Process process = null;
     private BufferedReader in = null;
-    private Runtime runtime = Runtime.getRuntime();
+    private Runtime runtime;
     private long startTime;
     private int bufferSize;
     private ArrayList<Packet> pings = new ArrayList<Packet>();
+    private String host;
+    private String command;
+
+    public Pinger(int bufferSize, String host) {
+        this(bufferSize, host, "");
+        try {
+            this.command = getResourceFileAsString("pingSGP.sh");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     //bufferSize - Maximum of pings that'll be stored at a given point of time
-    public Pinger(int bufferSize) {
+    public Pinger(int bufferSize, String host, String command) {
         this.bufferSize = bufferSize;
+        this.host = host;
+        this.runtime = Runtime.getRuntime();
+        this.command = command;
+    }
+
+    public void start() {
         startTime = System.currentTimeMillis();
 		try {
             // https://stackoverflow.com/a/31776547/14686793
-            process = runtime.exec(new String[] {"bash", "-c", getResourceFileAsString("pingSGP.sh")});
+            process = runtime.exec(new String[] {"bash", "-c", command.replace("HOSTNAME", host)});
 		}
 		catch (IOException e) {
 			e.printStackTrace();
@@ -45,20 +61,47 @@ public class Pinger {
 		}));
     }
     
-    public void readAll() {
+    public void readInputs() {
         try {
-            if (in.ready())
-            {
-                String line = in.readLine(); //Reads all remaining bytes from input stream, so only the new lines will be read
-                pings.add(new Packet(this.getTime(), Integer.parseInt(line)));
-                if(pings.size() > bufferSize) {
-                    pings.remove(0);
-                }
-            }
+            while (in.ready())
+                System.out.println(readOneInput());
         }
         catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public String readOneInput() {
+        try {
+            String line = in.readLine();
+            readLine(line);
+            return line;
+        }
+        catch(IOException e) {
+            e.printStackTrace();
+        }
+
+        return "";
+    }
+
+    public void readLine(String line) {
+        long time = this.getTime();
+        int value = -1;
+        try {
+            value = Integer.parseInt(line);
+        }
+        catch(NumberFormatException e) {
+            //Must mean input is some ping failed error, like "Host not found" or "Packet dropped", etc. Ignore it, let value be -1
+        }
+        pings.add(new Packet(time, value));
+        if(pings.size() > bufferSize) {
+            pings.remove(0);
+        }
+    }
+
+    public void readLines(String[] lines) {
+        for(String line : lines)
+            readLine(line);
     }
 
     public ArrayList<Packet> getPings() {
@@ -88,7 +131,7 @@ public class Pinger {
      * @return the file's contents
      * @throws IOException if read fails for any reason
      */
-    static String getResourceFileAsString(String fileName) throws IOException {
+    public static String getResourceFileAsString(String fileName) throws IOException {
         ClassLoader classLoader = ClassLoader.getSystemClassLoader();
         try (InputStream is = classLoader.getResourceAsStream(fileName)) {
             if (is == null) return null;
