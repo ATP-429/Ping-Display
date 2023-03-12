@@ -8,7 +8,6 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 
-
 public class Pinger {
     private Process process = null;
     private BufferedReader in = null;
@@ -18,11 +17,21 @@ public class Pinger {
     private ArrayList<Packet> pings = new ArrayList<Packet>();
     private String host;
     private String command;
+    private OS OSType;
+
+    private enum OS { WINDOWS, LINUX };
 
     public Pinger(int bufferSize, String host) {
         this(bufferSize, host, "");
         try {
-            this.command = getResourceFileAsString("pingSGP.sh");
+            switch(OSType) {
+                case LINUX:
+                    this.command = getResourceFileAsString("pingSGP.sh");
+                    break;
+                case WINDOWS:
+                    this.command = getResourceFileAsString("pingSGP.ps1");
+                    break;
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -34,13 +43,27 @@ public class Pinger {
         this.host = host;
         this.runtime = Runtime.getRuntime();
         this.command = command;
+        String os = System.getProperty("os.name").toLowerCase();
+        if(os.contains("win")) {
+            OSType = OS.WINDOWS;
+        }
+        else if(os.contains("nux") || os.contains("nix") || os.contains("aix")) {
+            OSType = OS.LINUX;
+        }
     }
 
     public void start() {
         startTime = System.currentTimeMillis();
 		try {
             // https://stackoverflow.com/a/31776547/14686793
-            process = runtime.exec(new String[] {"bash", "-c", command.replace("HOSTNAME", host)});
+            switch(OSType) {
+                case LINUX:
+                    process = runtime.exec(new String[] {"bash", "-c", command.replace("HOSTNAME", host)});
+                    break;
+                case WINDOWS:
+                    process = runtime.exec(new String[] {"powershell.exe", "-Command", command.replace("HOSTNAME", host)});
+                    break;
+            }
 		}
 		catch (IOException e) {
 			e.printStackTrace();

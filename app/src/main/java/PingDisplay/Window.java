@@ -4,6 +4,7 @@ import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Toolkit;
@@ -20,8 +21,8 @@ import javax.swing.JFrame;
 
 public class Window extends Canvas implements MouseMotionListener, MouseListener
 {
-	public static final int HEIGHT = 50 + 15, WIDTH = 100; //Dimensions of the whole window including the text area
-	public static final int GRAPH_HEIGHT = 50, GRAPH_WIDTH = 100; //Dimensions of the graph
+	public static final int GRAPH_HEIGHT = 70, GRAPH_WIDTH = 1920; //Dimensions of the graph
+	public static final int HEIGHT = GRAPH_HEIGHT + 25, WIDTH = 1920; //Dimensions of the whole window including the text area
 	public static int SCREEN_HEIGHT, SCREEN_WIDTH;
 	
 	public volatile boolean hovering;
@@ -59,9 +60,10 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 		this.frame.setResizable(false);
 		this.frame.setAlwaysOnTop(true);
 		this.frame.setUndecorated(true);
-		this.frame.setOpacity(0.7f);
-		this.frame.getContentPane().setBackground(new Color(1.0f, 0.0f, 0.0f, 0.5f));
+		//this.frame.setOpacity(0.7f);
+		this.frame.setBackground(new Color(0.0f, 0.0f, 0.0f, 0.2f));
 		this.frame.setTitle("Ping Display");
+		this.frame.setLocation(-1920, 0);
 
         try {
 			close = ImageIO.read(ClassLoader.getSystemClassLoader().getResource("close.png"));
@@ -84,17 +86,19 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 	
 	public void render(ArrayList<Packet> pings) {
         this.pings = pings;
-        this.repaint();
+        this.frame.repaint();
     }
 	
 	public void paint(Graphics og)
 	{
 		BufferedImage bufferImg = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g2 = (Graphics2D) bufferImg.getGraphics();
-		
-		g2.setColor(new Color(0.0f, 0.0f, 0.0f, 1.0f));
+
+		g2.setFont(new Font("Default", Font.PLAIN, (int)(16.0/12 * (HEIGHT-GRAPH_HEIGHT-10))));
+
+		g2.setColor(new Color(0.0f, 0.0f, 0.0f, 0.2f));
 		g2.fillRect(0, 0, WIDTH, HEIGHT);
-		
+
 		//Decorate the window by adding frames, which also separate graph and text area
 		g2.setColor(new Color(0, 0, 0, 255));
 		g2.drawRect(0, 0, WIDTH - 1, HEIGHT - 1); //We need to do -1 because otherwise the rectangle goes outside the window
@@ -123,10 +127,17 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 			if (pings.get(i - 1).value != -1 && pings.get(i).value != -1)
 			{
 				g2.setColor(new Color(0, 255, 0, 255));
-				double x1 = (GRAPH_WIDTH - (xPos - pings.get(i - 1).time) / 60);
+				// double x1 = (GRAPH_WIDTH - (xPos - pings.get(i - 1).time) / 60);
+				// double y1 = (GRAPH_HEIGHT - (pings.get(i - 1).value - 50) + (int) actualCamY);
+				// double x2 = (GRAPH_WIDTH - (xPos - pings.get(i).time) / 60);
+				// double y2 = (GRAPH_HEIGHT - (pings.get(i).value - 50) + (int) actualCamY);
+
+				double x1 = ((xPos - pings.get(i - 1).time) / 60);
 				double y1 = (GRAPH_HEIGHT - (pings.get(i - 1).value - 50) + (int) actualCamY);
-				double x2 = (GRAPH_WIDTH - (xPos - pings.get(i).time) / 60);
+				double x2 = ((xPos - pings.get(i).time) / 60);
 				double y2 = (GRAPH_HEIGHT - (pings.get(i).value - 50) + (int) actualCamY);
+
+
 				g2.drawLine((int) x1, (int) y1, (int) x2, (int) y2);
 			}
 		}
@@ -144,7 +155,7 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 		if (pings.size() > 0)
 		{
 			int ping = pings.get(pings.size() - 1).value;
-			int xPixelsPerLetter = 7, yPixelsPerLetter = 9; //Will be used for centering the string
+			int xPixelsPerLetter = g2.getFontMetrics().stringWidth("5"), yPixelsPerLetter = (int) (xPixelsPerLetter*1.4); //Will be used for centering the string
 			if (ping > 0)
 			{
 				int shade = (int) (255 * (1 - 50.0 / ping)); //Amount of shade of red. If ping is high, this should be close to 255 * 2
@@ -160,6 +171,7 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 				 * We took another screenshot and also found out that every letter takes 9 pixels in the y-axis.
 				 */
 				
+				//g2.drawString(s, 0, 2*GRAPH_HEIGHT);
 				g2.drawString(s, GRAPH_WIDTH / 2 - (s.length() * xPixelsPerLetter) / 2, GRAPH_HEIGHT + (HEIGHT - GRAPH_HEIGHT) / 2 + yPixelsPerLetter / 2);
 			}
 			else
@@ -212,8 +224,8 @@ public class Window extends Canvas implements MouseMotionListener, MouseListener
 		int finY = frame.getLocationOnScreen().y + deltaY; //Final y coord of window
 		
 		//If window will go out of bounds, adjust final values of X and Y to ensure window sticks to the side and doesn't go further
-		if (finX < 0)
-			finX = 0;
+		if (finX < -1920)
+			finX = -1920;
 		else if (finX > SCREEN_WIDTH - WIDTH)
 			finX = SCREEN_WIDTH - WIDTH;
 		if (finY < 0)
